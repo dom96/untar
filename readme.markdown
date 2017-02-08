@@ -11,7 +11,7 @@ nimble install untar
 
 ## Usage
 
-```
+```nim
 import os
 import untar
 
