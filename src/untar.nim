@@ -1,6 +1,6 @@
 import streams, strutils, os, logging
 
-import untarpkg/gzip
+import untar/gzip
 
 type
   TarFile* = ref object
