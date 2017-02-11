@@ -1,4 +1,4 @@
-import streams, strutils, os, logging
+import streams, strutils, os, logging, sequtils
 
 import untar/gzip
 
@@ -67,10 +67,23 @@ iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
                         typeflag: toTypeFlag(typeFlag))
     yield (info, fileContents)
 
-proc extract*(tar: TarFile, directory: string) =
+proc extract*(tar: TarFile, directory: string, skipOuterDirs = true) =
   ## Extracts the files stored in the opened ``TarFile`` into the specified
   ## ``directory``.
-  createDir(directory)
+  ##
+  ## Options
+  ## -------
+  ##
+  ## ``skipOuterDirs`` - If ``true``, the archive's directory structure is not
+  ## recreated; all files are deposited in the extraction directory. Similar to
+  ## ``unzip``'s ``-j`` flag.
+
+  # Create a temporary directory for us to extract into. This allows us to
+  # implement the ``skipOuterDirs`` feature and ensures that no files are
+  # extracted into the specified directory if the extraction fails mid-way.
+  let tempDir = getTempDir() / "untar-nim"
+  removeDir(tempDir)
+  createDir(tempDir)
 
   for info, contents in tar.walk():
     # Things to consider regarding `..' and absolutely paths:
@@ -87,11 +100,21 @@ proc extract*(tar: TarFile, directory: string) =
 
     case info.typeflag
     of NormalFile:
-      writeFile(directory / info.filename, contents)
+      writeFile(tempDir / info.filename, contents)
     of Directory:
-      createDir(directory / info.filename)
+      createDir(tempDir / info.filename)
     else:
       warn("Ignoring object of type '$1'" % $info.typeflag)
+
+  # Determine which directory to copy.
+  var srcDir = tempDir
+  let contents = toSeq(walkDir(srcDir))
+  if contents.len == 1 and skipOuterDirs:
+    # Skip the outer directory.
+    srcDir = contents[0][1]
+
+  # Finally copy the directory to what the user specified.
+  copyDir(srcDir, directory)
 
 when isMainModule:
   var file = newTarFile("master.tar.gz")
