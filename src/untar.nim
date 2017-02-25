@@ -39,6 +39,17 @@ proc toTypeFlag(flag: char): TypeFlag =
   else:
     return TypeFlag(flag)
 
+proc concatFilename(prefix, filename: string): string =
+    ## Concatenates `prefix` and `filename` so that there are no NUL (\0)
+    ## bytes in between them.
+    if prefix.len == 0: return filename
+
+    var realPrefixLen = 0
+    while prefix[realPrefixLen] != '\0':
+      realPrefixLen.inc()
+
+    return prefix[0 .. <realPrefixLen] / filename
+
 iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
   ## Decompresses the tar file and yields each file that is read.
   var previousWasEmpty = false
@@ -49,6 +60,12 @@ iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
     let filename = header[0 .. 100]
     let fileSize = parseOctInt(header[124 .. 135])
     let typeFlag = header[156]
+
+    # U-Star
+    # - Filename prefix.
+    var filenamePrefix = ""
+    if header[257 .. <(257+6)] == "ustar\0":
+      filenamePrefix = header[345 .. <(345+155)]
 
     # Skip empty records
     if filename[0] == '\0':
@@ -63,7 +80,8 @@ iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
     let fileContents = tar.dataStream.readStr(alignedFileSize)[0 .. <fileSize]
 
     # Construct the info object.
-    let info = FileInfo(filename: filename, size: fileSize,
+    let info = FileInfo(filename: concatFilename(filenamePrefix, filename),
+                        size: fileSize,
                         typeflag: toTypeFlag(typeFlag))
     yield (info, fileContents)
 
@@ -117,6 +135,9 @@ proc extract*(tar: TarFile, directory: string, skipOuterDirs = true) =
   copyDir(srcDir, directory)
 
 when isMainModule:
-  var file = newTarFile("master.tar.gz")
-  removeDir(getCurrentDir() / "extract-test")
-  file.extract(getCurrentDir() / "extract-test")
+  var file = newTarFile("nim-#head.tar.gz")
+  for info, contents in file.walk:
+    if "CrossCalculator" in info.filename:
+      echo(info)
+  #removeDir(getCurrentDir() / "extract-test")
+  #file.extract(getCurrentDir() / "extract-test")
