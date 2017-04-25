@@ -4,7 +4,8 @@ import untar/gzip
 
 type
   TarFile* = ref object
-    dataStream: GzStream
+    myDataStream: GzStream
+    filename: string
 
   FileInfo* = object
     filename*: string
@@ -26,7 +27,16 @@ type
 
 proc newTarFile*(filename: string): TarFile =
   ## Opens a .tar.gz file for reading.
-  result = TarFile(dataStream: newGzStream(filename))
+  result = TarFile(
+    myDataStream: nil,
+    filename: filename
+  )
+
+proc getDataStream(tar: TarFile): GzStream =
+  if tar.myDataStream.isNil():
+    tar.myDataStream = newGzStream(tar.filename)
+
+  return tar.myDataStream
 
 proc roundup(x, v: int): int {.inline.} =
   # Stolen from Nim's osalloc.nim
@@ -40,21 +50,22 @@ proc toTypeFlag(flag: char): TypeFlag =
     return TypeFlag(flag)
 
 proc concatFilename(prefix, filename: string): string =
-    ## Concatenates `prefix` and `filename` so that there are no NUL (\0)
-    ## bytes in between them.
-    if prefix.len == 0: return filename
+  ## Concatenates `prefix` and `filename` so that there are no NUL (\0)
+  ## bytes in between them.
+  if prefix.len == 0: return filename
 
-    var realPrefixLen = 0
-    while prefix[realPrefixLen] != '\0':
-      realPrefixLen.inc()
+  var realPrefixLen = 0
+  while prefix[realPrefixLen] != '\0':
+    realPrefixLen.inc()
 
-    return prefix[0 .. <realPrefixLen] / filename
+  return prefix[0 .. <realPrefixLen] / filename
 
 iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
   ## Decompresses the tar file and yields each file that is read.
   var previousWasEmpty = false
-  while not tar.dataStream.atEnd():
-    let header = tar.dataStream.readStr(512)
+  let dataStream = tar.getDataStream()
+  while not dataStream.atEnd():
+    let header = dataStream.readStr(512)
 
     # Gather info about the file/dir.
     let filename = header[0 .. 100]
@@ -77,13 +88,16 @@ iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
 
     # Read the file contents.
     let alignedFileSize = roundup(fileSize, 512)
-    let fileContents = tar.dataStream.readStr(alignedFileSize)[0 .. <fileSize]
+    let fileContents = dataStream.readStr(alignedFileSize)[0 .. <fileSize]
 
     # Construct the info object.
     let info = FileInfo(filename: concatFilename(filenamePrefix, filename),
                         size: fileSize,
                         typeflag: toTypeFlag(typeFlag))
     yield (info, fileContents)
+
+  tar.myDataStream.close()
+  tar.myDataStream = nil
 
 proc extract*(tar: TarFile, directory: string, skipOuterDirs = true) =
   ## Extracts the files stored in the opened ``TarFile`` into the specified
@@ -134,10 +148,16 @@ proc extract*(tar: TarFile, directory: string, skipOuterDirs = true) =
   # Finally copy the directory to what the user specified.
   copyDir(srcDir, directory)
 
+proc close*(tar: TarFile) =
+  ## Closes the file stream associated with this tar file.
+  if not tar.myDataStream.isNil():
+    tar.myDataStream.close()
+
 when isMainModule:
   var file = newTarFile("nim-#head.tar.gz")
   for info, contents in file.walk:
     if "CrossCalculator" in info.filename:
       echo(info)
-  #removeDir(getCurrentDir() / "extract-test")
-  #file.extract(getCurrentDir() / "extract-test")
+  removeDir(getCurrentDir() / "extract-test")
+  file.extract(getCurrentDir() / "extract-test")
+  file.close()

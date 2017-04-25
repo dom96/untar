@@ -1,4 +1,4 @@
-import streams
+import streams, os
 
 {.passl: "-lz".}
 
@@ -57,6 +57,8 @@ proc gzClose(s: Stream) =
 proc newGzStream*(filename: string): GzStream =
   ## creates a new stream for the GZ-compressed file located at ``filename``.
   new(result)
+  if not fileExists(filename):
+    raise newException(OSError, "GZ File does not exist: " & filename)
   result.handle = gzopen(filename, "r")
   result.pos = 0
   result.closeImpl = gzClose
