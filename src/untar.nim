@@ -156,8 +156,7 @@ proc close*(tar: TarFile) =
 when isMainModule:
   var file = newTarFile("nim-#head.tar.gz")
   for info, contents in file.walk:
-    if "CrossCalculator" in info.filename:
-      echo(info)
+    echo(info)
   removeDir(getCurrentDir() / "extract-test")
   file.extract(getCurrentDir() / "extract-test")
   file.close()

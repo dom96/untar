@@ -1,6 +1,11 @@
 import streams, os
 
-{.passl: "-lz".}
+when defined(windows):
+  const libz = "zlib1.dll"
+elif defined(macosx):
+  const libz = "libz.dylib"
+else:
+  const libz = "libz.so.1"
 
 type
   GzFilePtr = pointer
@@ -8,16 +13,16 @@ type
 const Z_ERRNO = -1
 
 proc gzopen(path: cstring, mode: cstring): GzFilePtr {.cdecl,
-  importc: "gzopen".}
+  importc: "gzopen", dynlib: libz.}
 
 proc gzread(thefile: GzFilePtr, buf: pointer, length: int): int32 {.cdecl,
-  importc: "gzread".}
+  importc: "gzread", dynlib: libz.}
 
 proc gzseek*(thefile: GzFilePtr, offset: int32, whence: int32): int32 {.cdecl,
-  importc.}
+  importc, dynlib: libz.}
 
-proc gzeof(thefile: GzFilePtr): int {.cdecl, importc.}
-proc gzclose(thefile: GzFilePtr): int32 {.cdecl, importc.}
+proc gzeof(thefile: GzFilePtr): int {.cdecl, importc, dynlib: libz.}
+proc gzclose(thefile: GzFilePtr): int32 {.cdecl, importc, dynlib: libz.}
 
 type
   GzStream* = ref object of Stream
