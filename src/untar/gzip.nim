@@ -23,6 +23,7 @@ proc gzseek*(thefile: GzFilePtr, offset: int32, whence: int32): int32 {.cdecl,
 
 proc gzeof(thefile: GzFilePtr): int {.cdecl, importc, dynlib: libz.}
 proc gzclose(thefile: GzFilePtr): int32 {.cdecl, importc, dynlib: libz.}
+proc gzerror(thefile: GzFilePtr, errnum: ptr int): cstring {.cdecl, importc, dynlib: libz.}
 
 type
   GzStream* = ref object of Stream
@@ -32,9 +33,15 @@ type
 
   ZlibError* = object of Exception
 
-proc checkZlibError(ret: cint) =
+proc checkZlibError(ret: cint, handle: GzFilePtr) =
   if ret == Z_ERRNO:
-    raise newException(ZlibError, "Zlib call didn't return Z_OK")
+    var errnum: int
+    let msg = gzerror(handle, addr errnum)
+    if errnum == Z_ERRNO:
+      raiseOSError(osLastError())
+    else:
+      raise newException(ZlibError, "Zlib call didn't return Z_OK. " &
+                         "Error was: " & $msg & ". Errnum: " & $errnum)
 
 proc gzAtEnd(s: Stream): bool =
   var s = GzStream(s)
@@ -48,7 +55,7 @@ proc gzReadData(s: Stream, buffer: pointer, bufLen: int): int =
   if bufLen == 0: return 0
   var s = GzStream(s)
   let ret = gzread(s.handle, buffer, bufLen)
-  checkZlibError ret
+  checkZlibError ret, s.handle
   s.pos.inc(ret)
   s.isAtEnd = ret == 0
 
@@ -56,7 +63,7 @@ proc gzReadData(s: Stream, buffer: pointer, bufLen: int): int =
 
 proc gzClose(s: Stream) =
   var s = GzStream(s)
-  checkZlibError gzclose(s.handle)
+  checkZlibError gzclose(s.handle), s.handle
   s.handle = nil
 
 proc newGzStream*(filename: string): GzStream =
