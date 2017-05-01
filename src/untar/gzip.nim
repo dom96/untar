@@ -1,11 +1,14 @@
 import streams, os
 
 when defined(windows):
-  const libz = "zlib1.dll"
+  {.compile: ("../../zlib/*.c", "zlib_$#.obj").}
+  {.pragma: mydyn.}
 elif defined(macosx):
   const libz = "libz.dylib"
+  {.pragma: mydyn, dynlib: libz.}
 else:
   const libz = "libz.so.1"
+  {.pragma: mydyn, dynlib: libz.}
 
 type
   GzFilePtr = pointer
@@ -13,17 +16,18 @@ type
 const Z_ERRNO = -1
 
 proc gzopen(path: cstring, mode: cstring): GzFilePtr {.cdecl,
-  importc: "gzopen", dynlib: libz.}
+  importc: "gzopen", mydyn.}
 
-proc gzread(thefile: GzFilePtr, buf: pointer, length: int): int32 {.cdecl,
-  importc: "gzread", dynlib: libz.}
+proc gzread(thefile: GzFilePtr, buf: pointer, length: cint): int32 {.cdecl,
+  importc: "gzread", mydyn.}
 
 proc gzseek*(thefile: GzFilePtr, offset: int32, whence: int32): int32 {.cdecl,
-  importc, dynlib: libz.}
+  importc, mydyn.}
 
-proc gzeof(thefile: GzFilePtr): int {.cdecl, importc, dynlib: libz.}
-proc gzclose(thefile: GzFilePtr): int32 {.cdecl, importc, dynlib: libz.}
-proc gzerror(thefile: GzFilePtr, errnum: ptr int): cstring {.cdecl, importc, dynlib: libz.}
+proc gzeof(thefile: GzFilePtr): int {.cdecl, importc, mydyn.}
+proc gzclose(thefile: GzFilePtr): int32 {.cdecl, importc, mydyn.}
+proc gzerror(thefile: GzFilePtr, errnum: ptr cint): cstring
+  {.cdecl, importc, mydyn.}
 
 type
   GzStream* = ref object of Stream
@@ -35,7 +39,7 @@ type
 
 proc checkZlibError(ret: cint, handle: GzFilePtr) =
   if ret == Z_ERRNO:
-    var errnum: int
+    var errnum: cint
     let msg = gzerror(handle, addr errnum)
     if errnum == Z_ERRNO:
       raiseOSError(osLastError())
@@ -54,7 +58,7 @@ proc gzGetPosition(s: Stream): int =
 proc gzReadData(s: Stream, buffer: pointer, bufLen: int): int =
   if bufLen == 0: return 0
   var s = GzStream(s)
-  let ret = gzread(s.handle, buffer, bufLen)
+  let ret = gzread(s.handle, buffer, bufLen.cint)
   checkZlibError ret, s.handle
   s.pos.inc(ret)
   s.isAtEnd = ret == 0

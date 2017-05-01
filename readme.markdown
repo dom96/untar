@@ -24,6 +24,8 @@ file.extract(getCurrentDir() / "extracted-files")
 This package aims to have as few dependencies as possible. The ``zlib`` library
 is the only dependency.
 
+On Windows the ``zlib`` library is linked statically!
+
 ## License
 
 MIT
