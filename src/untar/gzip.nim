@@ -1,7 +1,7 @@
 import streams, os
 
 when defined(windows):
-  {.compile: ("../../zlib/*.c", "zlib_$#.obj").}
+  {.compile: ("../zlib/*.c", "zlib_$#.obj").}
   {.pragma: mydyn.}
 elif defined(macosx):
   const libz = "libz.dylib"
