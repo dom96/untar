@@ -63,13 +63,14 @@ proc concatFilename(prefix, filename: string): string =
 iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
   ## Decompresses the tar file and yields each file that is read.
   var previousWasEmpty = false
+  var count = 0
   let dataStream = tar.getDataStream()
   while not dataStream.atEnd():
     let header = dataStream.readStr(512)
 
     # Gather info about the file/dir.
     let filename = header[0 .. 100]
-    let fileSize = parseOctInt(header[124 .. 135])
+    let fileSize = parseOctInt(header[124 .. 134])
     let typeFlag = header[156]
 
     # U-Star
@@ -94,7 +95,16 @@ iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
     let info = FileInfo(filename: concatFilename(filenamePrefix, filename),
                         size: fileSize,
                         typeflag: toTypeFlag(typeFlag))
+
+    # Some tarballs don't have the outer directory defined. So we implicitly
+    # yield it.
+    if count == 0 and info.typeflag != Directory:
+      let dir = info.filename.splitFile().dir
+      yield (FileInfo(filename: dir, size: 0, typeFlag: Directory), "")
+
+    count.inc()
     yield (info, fileContents)
+
 
   tar.myDataStream.close()
   tar.myDataStream = nil
@@ -154,7 +164,7 @@ proc close*(tar: TarFile) =
     tar.myDataStream.close()
 
 when isMainModule:
-  var file = newTarFile("nim-#head.tar.gz")
+  var file = newTarFile("mingw32.tar.gz")
   for info, contents in file.walk:
     echo(info)
   removeDir(getCurrentDir() / "extract-test")
