@@ -4,7 +4,7 @@ import untar/gzip
 
 type
   TarFile* = ref object
-    myDataStream: GzStream
+    myDataStream: Stream
     filename: string
 
   FileInfo* = object
@@ -32,9 +32,16 @@ proc newTarFile*(filename: string): TarFile =
     filename: filename
   )
 
-proc getDataStream(tar: TarFile): GzStream =
+proc getDataStream(tar: TarFile): Stream =
   if tar.myDataStream.isNil():
-    tar.myDataStream = newGzStream(tar.filename)
+    let ext = tar.filename.splitFile().ext
+    case ext
+    of ".gz":
+      tar.myDataStream = newGzStream(tar.filename)
+    of ".tar":
+      tar.myDataStream = newFileStream(tar.filename, fmRead, 1000)
+    else:
+      raise newException(TarError, "Unsupported file extension: " & ext)
 
   return tar.myDataStream
 
@@ -128,7 +135,7 @@ proc extract*(tar: TarFile, directory: string, skipOuterDirs = true) =
   createDir(tempDir)
 
   for info, contents in tar.walk():
-    # Things to consider regarding `..' and absolutely paths:
+    # Things to consider regarding `..' and absolute paths:
     # https://www.gnu.org/software/tar/manual/html_node/absolute.html
 
     # For now just reject these. TODO: Turn absolute paths into non-absolutes.
@@ -164,7 +171,7 @@ proc close*(tar: TarFile) =
     tar.myDataStream.close()
 
 when isMainModule:
-  var file = newTarFile("mingw32.tar.gz")
+  var file = newTarFile("nim-0.17.0.tar.gz")
   for info, contents in file.walk:
     echo(info)
   removeDir(getCurrentDir() / "extract-test")
