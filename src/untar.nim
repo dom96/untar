@@ -116,7 +116,7 @@ iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
   tar.myDataStream.close()
   tar.myDataStream = nil
 
-proc extract*(tar: TarFile, directory: string, skipOuterDirs = true) =
+proc extract*(tar: TarFile, directory: string, skipOuterDirs = true, tempDir: string = nil) =
   ## Extracts the files stored in the opened ``TarFile`` into the specified
   ## ``directory``.
   ##
@@ -130,7 +130,9 @@ proc extract*(tar: TarFile, directory: string, skipOuterDirs = true) =
   # Create a temporary directory for us to extract into. This allows us to
   # implement the ``skipOuterDirs`` feature and ensures that no files are
   # extracted into the specified directory if the extraction fails mid-way.
-  let tempDir = getTempDir() / "untar-nim"
+  var tempDir = tempDir
+  if tempDir.isNil:
+    tempDir = getTempDir() / "untar-nim"
   removeDir(tempDir)
   createDir(tempDir)
 
