@@ -77,7 +77,11 @@ iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
 
     # Gather info about the file/dir.
     let filename = header[0 .. 100]
-    let fileSize = parseOctInt(header[124 .. 134])
+    var fileSize = 0
+    try:
+      fileSize = parseOctInt(header[124 .. 134])
+    except ValueError:
+      discard
     let typeFlag = header[156]
 
     # U-Star
