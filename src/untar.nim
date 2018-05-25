@@ -77,14 +77,6 @@ iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
 
     # Gather info about the file/dir.
     let filename = header[0 .. 100]
-    let fileSize = parseOctInt(header[124 .. 134])
-    let typeFlag = header[156]
-
-    # U-Star
-    # - Filename prefix.
-    var filenamePrefix = ""
-    if header[257 .. <(257+6)] == "ustar\0":
-      filenamePrefix = header[345 .. <(345+155)]
 
     # Skip empty records
     if filename[0] == '\0':
@@ -93,6 +85,15 @@ iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
       else:
         previousWasEmpty = true
         continue
+
+    let fileSize = parseOctInt(header[124 .. 134])
+    let typeFlag = header[156]
+
+    # U-Star
+    # - Filename prefix.
+    var filenamePrefix = ""
+    if header[257 .. <(257+6)] == "ustar\0":
+      filenamePrefix = header[345 .. <(345+155)]
 
     # Read the file contents.
     let alignedFileSize = roundup(fileSize, 512)
