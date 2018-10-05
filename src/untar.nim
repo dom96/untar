@@ -65,7 +65,7 @@ proc concatFilename(prefix, filename: string): string =
   while prefix[realPrefixLen] != '\0':
     realPrefixLen.inc()
 
-  return prefix[0 .. <realPrefixLen] / filename
+  return prefix[0 ..< realPrefixLen] / filename
 
 iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
   ## Decompresses the tar file and yields each file that is read.
@@ -92,12 +92,12 @@ iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
     # U-Star
     # - Filename prefix.
     var filenamePrefix = ""
-    if header[257 .. <(257+6)] == "ustar\0":
-      filenamePrefix = header[345 .. <(345+155)]
+    if header[257 ..< (257+6)] == "ustar\0":
+      filenamePrefix = header[345 ..< (345+155)]
 
     # Read the file contents.
     let alignedFileSize = roundup(fileSize, 512)
-    let fileContents = dataStream.readStr(alignedFileSize)[0 .. <fileSize]
+    let fileContents = dataStream.readStr(alignedFileSize)[0 ..< fileSize]
 
     # Construct the info object.
     let info = FileInfo(filename: concatFilename(filenamePrefix, filename),
@@ -117,7 +117,7 @@ iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
   tar.myDataStream.close()
   tar.myDataStream = nil
 
-proc extract*(tar: TarFile, directory: string, skipOuterDirs = true, tempDir: string = nil) =
+proc extract*(tar: TarFile, directory: string, skipOuterDirs = true, tempDir: string = "") =
   ## Extracts the files stored in the opened ``TarFile`` into the specified
   ## ``directory``.
   ##
@@ -132,7 +132,7 @@ proc extract*(tar: TarFile, directory: string, skipOuterDirs = true, tempDir: st
   # implement the ``skipOuterDirs`` feature and ensures that no files are
   # extracted into the specified directory if the extraction fails mid-way.
   var tempDir = tempDir
-  if tempDir.isNil:
+  if tempDir.len == 0:
     tempDir = getTempDir() / "untar-nim"
   removeDir(tempDir)
   createDir(tempDir)
