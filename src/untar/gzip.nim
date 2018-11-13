@@ -15,8 +15,10 @@ type
 
 const Z_ERRNO = -1
 
-proc gzopen(path: cstring, mode: cstring): GzFilePtr {.cdecl,
-  importc: "gzopen", mydyn.}
+# gzopen does not support Unicode paths on Windows,
+# so use gzdopen instead
+proc gzdopen(fd: cint, mode: cstring): GzFilePtr {.cdecl,
+  importc: "gzdopen", mydyn.}
 
 proc gzread(thefile: GzFilePtr, buf: pointer, length: cint): int32 {.cdecl,
   importc: "gzread", mydyn.}
@@ -73,9 +75,14 @@ proc gzClose(s: Stream) =
 proc newGzStream*(filename: string): GzStream =
   ## creates a new stream for the GZ-compressed file located at ``filename``.
   new(result)
-  if not fileExists(filename):
-    raise newException(OSError, "GZ File does not exist: " & filename)
-  result.handle = gzopen(filename, "r")
+  let
+    file = open(filename)
+    fd = file.getFileHandle()
+    handle = gzdopen(fd, "r")
+  if handle == nil:
+    close(file)
+    raise newException(ZlibError, "Cannot open the GZ File")
+  result.handle = handle
   result.pos = 0
   result.closeImpl = gzClose
   result.atEndImpl = gzAtEnd
