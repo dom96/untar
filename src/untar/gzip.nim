@@ -7,7 +7,7 @@ elif defined(macosx):
   const libz = "libz.dylib"
   {.pragma: mydyn, dynlib: libz.}
 else:
-  const libz = "libz.so.1"
+  const libz = "libz.so(|.0)"
   {.pragma: mydyn, dynlib: libz.}
 
 type
