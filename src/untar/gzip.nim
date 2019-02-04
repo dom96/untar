@@ -37,7 +37,7 @@ type
     pos: int
     isAtEnd: bool
 
-  ZlibError* = object of Exception
+  ZlibError* = object of IOError
 
 proc checkZlibError(ret: cint, handle: GzFilePtr) =
   if ret == Z_ERRNO:
