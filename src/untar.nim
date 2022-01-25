@@ -86,7 +86,7 @@ iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
         previousWasEmpty = true
         continue
 
-    let fileSize = parseOctInt(header[124 .. 134])
+    let fileSize = parseOctInt(header[124 ..< 135]) # last character (idx = 135) is `\0`
     let typeFlag = header[156]
 
     # U-Star
