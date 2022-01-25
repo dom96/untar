@@ -92,9 +92,9 @@ iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
     # U-Star
     # - Filename prefix.
     var filenamePrefix = ""
-    if header[257 ..< (257+6)] == "ustar\0":
-      filenamePrefix = header[345 ..< (345+155)]
-
+    if header[257 ..< (257+6)] == "ustar\0":        # `ustar  \0` would indicate `OLDGNU`
+      filenamePrefix = header[345 ..< (345+131)]    # ustar `prefix` is 131 bytes long (after `atime` and `ctime`)
+                                                    # should `atime` / `ctime` be available somehow?
     # Read the file contents.
     let alignedFileSize = roundup(fileSize, 512)
     let fileContents = dataStream.readStr(alignedFileSize)[0 ..< fileSize]
