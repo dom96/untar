@@ -76,7 +76,7 @@ iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
     let header = dataStream.readStr(512)
 
     # Gather info about the file/dir.
-    let filename = header[0 .. 100]
+    let filename = header[0 ..< 100]                # name is 100 characters long
 
     # Skip empty records
     if filename[0] == '\0':
