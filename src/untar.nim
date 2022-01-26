@@ -56,16 +56,13 @@ proc toTypeFlag(flag: char): TypeFlag =
   else:
     return TypeFlag(flag)
 
+func trim(s: string): string = s.strip(chars = {'\0'})
+
 proc concatFilename(prefix, filename: string): string =
   ## Concatenates `prefix` and `filename` so that there are no NUL (\0)
   ## bytes in between them.
-  if prefix.len == 0: return filename
-
-  var realPrefixLen = 0
-  while prefix[realPrefixLen] != '\0':
-    realPrefixLen.inc()
-
-  return prefix[0 ..< realPrefixLen] / filename
+  result = if prefix.len == 0: filename.trim()
+           else: prefix.trim() / filename.trim()
 
 iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
   ## Decompresses the tar file and yields each file that is read.
