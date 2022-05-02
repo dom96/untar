@@ -56,16 +56,13 @@ proc toTypeFlag(flag: char): TypeFlag =
   else:
     return TypeFlag(flag)
 
+func trim(s: string): string = s.strip(chars = {'\0'})
+
 proc concatFilename(prefix, filename: string): string =
   ## Concatenates `prefix` and `filename` so that there are no NUL (\0)
   ## bytes in between them.
-  if prefix.len == 0: return filename
-
-  var realPrefixLen = 0
-  while prefix[realPrefixLen] != '\0':
-    realPrefixLen.inc()
-
-  return prefix[0 ..< realPrefixLen] / filename
+  result = if prefix.len == 0: filename.trim()
+           else: prefix.trim() / filename.trim()
 
 iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
   ## Decompresses the tar file and yields each file that is read.
@@ -76,7 +73,7 @@ iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
     let header = dataStream.readStr(512)
 
     # Gather info about the file/dir.
-    let filename = header[0 .. 100]
+    let filename = header[0 ..< 100]                # name is 100 characters long
 
     # Skip empty records
     if filename[0] == '\0':
@@ -86,15 +83,15 @@ iterator walk*(tar: TarFile): tuple[info: FileInfo, contents: string] =
         previousWasEmpty = true
         continue
 
-    let fileSize = parseOctInt(header[124 .. 134])
+    let fileSize = parseOctInt(header[124 ..< 135]) # last character (idx = 135) is `\0`
     let typeFlag = header[156]
 
     # U-Star
     # - Filename prefix.
     var filenamePrefix = ""
-    if header[257 ..< (257+6)] == "ustar\0":
-      filenamePrefix = header[345 ..< (345+155)]
-
+    if header[257 ..< (257+6)] == "ustar\0": # `ustar  \0` would indicate `OLDGNU`
+      filenamePrefix = header[345 ..< (345+131)]    # ustar `prefix` is 131 bytes long (after `atime` and `ctime`)
+                                                    # should `atime` / `ctime` be available somehow?
     # Read the file contents.
     let alignedFileSize = roundup(fileSize, 512)
     let fileContents = dataStream.readStr(alignedFileSize)[0 ..< fileSize]
